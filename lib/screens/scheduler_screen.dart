@@ -749,7 +749,7 @@ class _CreateTaskDialogState extends State<_CreateTaskDialog> {
             ),
             if (!_cronMode) ...[
               DropdownButtonFormField<String>(
-                initialValue: _frequency,
+                value: _frequency,
                 dropdownColor: AtlasColors.surfaceContainer,
                 items: const [
                   DropdownMenuItem(
@@ -776,7 +776,7 @@ class _CreateTaskDialogState extends State<_CreateTaskDialog> {
                     if (_frequency == 'daily') ...[
                       Expanded(
                         child: DropdownButtonFormField<int>(
-                          initialValue: _hour,
+                          value: _hour,
                           dropdownColor:
                               AtlasColors.surfaceContainer,
                           items: List.generate(
@@ -797,7 +797,7 @@ class _CreateTaskDialogState extends State<_CreateTaskDialog> {
                     ],
                     Expanded(
                       child: DropdownButtonFormField<int>(
-                        initialValue: _minute,
+                        value: _minute,
                         dropdownColor:
                             AtlasColors.surfaceContainer,
                         items: [0, 15, 30, 45]
