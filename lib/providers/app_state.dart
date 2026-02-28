@@ -86,6 +86,7 @@ class CommandState extends ChangeNotifier {
   final AppState _app;
   final List<ChatMessage> messages = [];
   bool _loading = false;
+  bool _cancelled = false;
   LockStatus? _lockStatus;
   Timer? _lockPoller;
   String? _error;
@@ -111,19 +112,23 @@ class CommandState extends ChangeNotifier {
     }
 
     _loading = true;
+    _cancelled = false;
     _error = null;
     notifyListeners();
     _startLockPolling();
 
     try {
       final result = await client.sendCommand(prompt);
+      if (_cancelled) return;
       final responseText = result['result'] as String? ?? result['error'] as String? ?? 'No response';
       final turns = result['turns'] as int?;
       messages.add(ChatMessage(text: responseText, isUser: false, turns: turns));
     } on ApiException catch (e) {
+      if (_cancelled) return;
       _error = e.message;
       messages.add(ChatMessage(text: 'Error: ${e.message}', isUser: false));
     } catch (e) {
+      if (_cancelled) return;
       _error = e.toString();
       messages.add(ChatMessage(text: 'Error: $e', isUser: false));
       _app.triggerRescanOnError();
@@ -132,6 +137,18 @@ class CommandState extends ChangeNotifier {
       _stopLockPolling();
       notifyListeners();
     }
+  }
+
+  Future<void> cancelCommand() async {
+    if (!_loading) return;
+    _cancelled = true;
+    _loading = false;
+    _stopLockPolling();
+    messages.add(ChatMessage(text: 'Command cancelled.', isUser: false));
+    notifyListeners();
+    try {
+      await _app.client?.releaseLock();
+    } catch (_) {}
   }
 
   void addVoiceMessage(ChatMessage message) {

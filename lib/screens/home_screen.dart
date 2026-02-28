@@ -62,7 +62,6 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, state, voice, _) {
         return Column(
           children: [
-            _LockBanner(state: state),
             _VoiceBanner(voice: voice),
             Expanded(
               child: state.messages.isEmpty
@@ -91,67 +90,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         );
       },
-    );
-  }
-}
-
-// ─── Lock banner ──────────────────────────────────────────────────────────────
-
-class _LockBanner extends StatelessWidget {
-  final CommandState state;
-  const _LockBanner({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final lock = state.lockStatus;
-    if (!state.loading || lock == null) return const SizedBox.shrink();
-
-    final ownerText = lock.ownerType != null ? ' (${lock.ownerType})' : '';
-    return Container(
-      decoration: const BoxDecoration(
-        color: AtlasColors.goldSurface,
-        border: Border(
-          bottom:
-              BorderSide(color: AtlasColors.goldDark, width: 0.5),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          const SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AtlasColors.gold,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              lock.locked
-                  ? 'Agent working$ownerText...'
-                  : 'Waiting for lock...',
-              style: const TextStyle(
-                color: AtlasColors.gold,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: state.releaseLock,
-            style: TextButton.styleFrom(
-              foregroundColor: AtlasColors.error,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: const Text('Stop', style: TextStyle(fontSize: 13)),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -10,6 +10,7 @@ import 'screens/filter_screen.dart';
 import 'screens/scheduler_screen.dart';
 import 'screens/settings_screen.dart';
 import 'theme/app_theme.dart';
+import 'dart:math' as math;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -103,58 +104,77 @@ class _AppShellState extends State<_AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppState>(
-      builder: (context, app, child) {
-        return Scaffold(
-          appBar: AppBar(
-            title: Row(
-              children: [
-                const Text(
-                  'ATLAS',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 2.5,
-                    color: AtlasColors.gold,
+    return Consumer2<AppState, CommandState>(
+      builder: (context, app, cmd, child) {
+        return Stack(
+          children: [
+            Scaffold(
+              appBar: AppBar(
+                title: Row(
+                  children: [
+                    const Text(
+                      'ATLAS',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 2.5,
+                        color: AtlasColors.gold,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AtlasColors.gold.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    const Spacer(),
+                    _ConnectionBadge(app: app),
+                  ],
+                ),
+              ),
+              body: IndexedStack(
+                index: _selectedIndex,
+                children: const [
+                  HomeScreen(),
+                  NotificationsScreen(),
+                  FilterScreen(),
+                  SchedulerScreen(),
+                  SettingsScreen(),
+                ],
+              ),
+              bottomNavigationBar: Container(
+                decoration: const BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: AtlasColors.border, width: 0.5),
                   ),
                 ),
-                const SizedBox(width: 6),
-                Container(
-                  width: 5,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AtlasColors.gold.withValues(alpha: 0.4),
-                  ),
+                child: NavigationBar(
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: (i) =>
+                      setState(() => _selectedIndex = i),
+                  destinations: _destinations,
                 ),
-                const Spacer(),
-                _ConnectionBadge(app: app),
-              ],
-            ),
-          ),
-          body: IndexedStack(
-            index: _selectedIndex,
-            children: const [
-              HomeScreen(),
-              NotificationsScreen(),
-              FilterScreen(),
-              SchedulerScreen(),
-              SettingsScreen(),
-            ],
-          ),
-          bottomNavigationBar: Container(
-            decoration: const BoxDecoration(
-              border: Border(
-                top: BorderSide(color: AtlasColors.border, width: 0.5),
               ),
             ),
-            child: NavigationBar(
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: (i) =>
-                  setState(() => _selectedIndex = i),
-              destinations: _destinations,
-            ),
-          ),
+            // ── Global "Atlas is controlling" overlay ──────────────────────
+            if (cmd.loading) ...[
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: _AtlasControlBanner(),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: _TakeControlButton(onPressed: cmd.cancelCommand),
+              ),
+            ],
+          ],
         );
       },
     );
@@ -233,6 +253,173 @@ class _ConnectionBadge extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Atlas control banner (top overlay) ───────────────────────────────────────
+
+class _AtlasControlBanner extends StatefulWidget {
+  const _AtlasControlBanner();
+
+  @override
+  State<_AtlasControlBanner> createState() => _AtlasControlBannerState();
+}
+
+class _AtlasControlBannerState extends State<_AtlasControlBanner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: AnimatedBuilder(
+        animation: _pulse,
+        builder: (context, _) {
+          final glow = math.sin(_pulse.value * math.pi);
+          return Container(
+            decoration: BoxDecoration(
+              color: AtlasColors.goldSurface,
+              border: const Border(
+                bottom: BorderSide(color: AtlasColors.goldDark, width: 1),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AtlasColors.gold.withValues(alpha: 0.08 + glow * 0.10),
+                  blurRadius: 12 + glow * 8,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              children: [
+                // Pulsing lock icon
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AtlasColors.gold
+                            .withValues(alpha: 0.08 + glow * 0.10),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.phonelink_lock_rounded,
+                      size: 15,
+                      color: AtlasColors.gold,
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'ATLAS IS CONTROLLING YOUR PHONE',
+                        style: TextStyle(
+                          color: AtlasColors.gold,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      SizedBox(height: 1),
+                      Text(
+                        'Executing command — tap "Take Control" to cancel',
+                        style: TextStyle(
+                          color: AtlasColors.goldDark,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: AtlasColors.gold.withValues(alpha: 0.5 + glow * 0.5),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─── Take control button (bottom overlay) ─────────────────────────────────────
+
+class _TakeControlButton extends StatelessWidget {
+  final Future<void> Function() onPressed;
+  const _TakeControlButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AtlasColors.surface,
+          border: Border(
+            top: BorderSide(color: AtlasColors.border, width: 0.5),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        child: SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton.icon(
+            onPressed: () => onPressed(),
+            icon: const Icon(Icons.pan_tool_alt_rounded, size: 18),
+            label: const Text(
+              'Take Control',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AtlasColors.error,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
         ),
       ),
     );
