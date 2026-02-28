@@ -20,6 +20,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final state = context.read<NotificationsState>();
       state.startPolling();
       state.refreshLog();
+      context.read<FilterState>().load();
     });
   }
 
@@ -31,11 +32,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<NotificationsState>(
-      builder: (context, state, _) {
+    return Consumer2<NotificationsState, FilterState>(
+      builder: (context, state, filterState, _) {
         return Column(
           children: [
-            _StatusHeader(state: state),
+            _StatusHeader(state: state, filterCount: filterState.packages.length),
             if (state.error != null)
               Padding(
                 padding:
@@ -90,7 +91,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
 class _StatusHeader extends StatelessWidget {
   final NotificationsState state;
-  const _StatusHeader({required this.state});
+  final int filterCount;
+  const _StatusHeader({required this.state, required this.filterCount});
 
   @override
   Widget build(BuildContext context) {
@@ -153,7 +155,7 @@ class _StatusHeader extends StatelessWidget {
                             const SizedBox(width: 12),
                             _MiniStat(
                               label: 'Filters',
-                              value: '${status.filterCount}',
+                              value: '$filterCount',
                             ),
                           ],
                         ),
