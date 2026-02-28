@@ -17,6 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   late CommandState _commandState;
+  late AppState _appState;
 
   @override
   void initState() {
@@ -24,7 +25,9 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _commandState = context.read<CommandState>();
       _commandState.addListener(_onStateChange);
-      // Pre-connect to OpenAI so mic hold is instant.
+      _appState = context.read<AppState>();
+      _appState.addListener(_onAppStateChange);
+      // Try preconnect now in case server is already connected.
       context.read<VoiceState>().preconnect();
     });
   }
@@ -32,9 +35,17 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _commandState.removeListener(_onStateChange);
+    _appState.removeListener(_onAppStateChange);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onAppStateChange() {
+    // Preconnect to OpenAI once the Atlas server is found.
+    if (_appState.connectionState == ServerConnectionState.connected) {
+      context.read<VoiceState>().preconnect();
+    }
   }
 
   void _onStateChange() {

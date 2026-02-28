@@ -29,14 +29,18 @@ class VoiceState extends ChangeNotifier {
   String? get lastError => _lastError;
 
   /// Eagerly connect to OpenAI so the mic is instant when held.
-  /// Called from the home screen on load. Silent — no status change.
+  /// Called from the home screen on load. Fully silent — no errors shown.
   Future<void> preconnect() async {
     if (_preconnecting || (_service != null && _service!.isConnected)) return;
+    // Don't attempt if prerequisites aren't ready yet.
+    final apiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
+    if (apiKey.isEmpty || _app.client == null) return;
     _preconnecting = true;
     try {
       await _connect();
     } catch (_) {
       // Preconnect failure is silent — startListening will retry.
+      _lastError = null;
     } finally {
       _preconnecting = false;
     }
