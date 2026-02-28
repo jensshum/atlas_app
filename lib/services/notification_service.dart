@@ -9,7 +9,7 @@ class NotificationService {
 
   static Future<void> init() async {
     const settings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      android: AndroidInitializationSettings('ic_notification'),
     );
     await _plugin.initialize(
       settings,
@@ -32,12 +32,12 @@ class NotificationService {
         'atlas_control',
         'Atlas Control',
         channelDescription: 'Shown while Atlas is controlling your phone',
-        importance: Importance.high,
-        priority: Priority.high,
+        importance: Importance.max,
+        priority: Priority.max,
         ongoing: true,
         autoCancel: true,
         showWhen: false,
-        icon: '@mipmap/ic_launcher',
+        icon: 'ic_notification',
       ),
     );
     await _plugin.show(
