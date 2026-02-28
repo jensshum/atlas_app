@@ -147,10 +147,15 @@ class CommandState extends ChangeNotifier {
   }
 
   Future<void> sendCommand(String prompt) async {
-    // Always show user message immediately, regardless of connection state.
+    // Show user message and typing indicator immediately.
     messages.add(ChatMessage(text: prompt, isUser: true));
+    _loading = true;
+    _cancelled = false;
+    _error = null;
     notifyListeners();
 
+    // Fetch AI confirmation while the typing indicator is already visible,
+    // then insert it into the list so it renders before the tool executes.
     final confirmation = await _fetchConfirmation(prompt);
     messages.add(ChatMessage(text: confirmation, isUser: false));
     notifyListeners();
@@ -160,14 +165,11 @@ class CommandState extends ChangeNotifier {
       messages.add(ChatMessage(
           text: 'Not connected to Atlas. Check the connection status in the toolbar.',
           isUser: false));
+      _loading = false;
       notifyListeners();
       return;
     }
 
-    _loading = true;
-    _cancelled = false;
-    _error = null;
-    notifyListeners();
     _startLockPolling();
 
     try {
