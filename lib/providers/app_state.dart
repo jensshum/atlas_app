@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../api/api_client.dart';
 import '../api/discovery_service.dart';
 import '../models/models.dart';
+import '../services/notification_service.dart';
 
 enum ServerConnectionState { searching, connected, notFound }
 
@@ -174,6 +175,11 @@ class CommandState extends ChangeNotifier {
     _showOverlay = requiresControl;
     notifyListeners();
 
+    if (requiresControl) {
+      NotificationService.onCancelTapped = cancelCommand;
+      await NotificationService.showControlNotification();
+    }
+
     final client = _app.client;
     if (client == null) {
       messages.add(ChatMessage(
@@ -205,6 +211,8 @@ class CommandState extends ChangeNotifier {
     } finally {
       _loading = false;
       _showOverlay = false;
+      NotificationService.onCancelTapped = null;
+      await NotificationService.cancelControlNotification();
       _stopLockPolling();
       notifyListeners();
     }
@@ -215,6 +223,8 @@ class CommandState extends ChangeNotifier {
     _cancelled = true;
     _loading = false;
     _showOverlay = false;
+    NotificationService.onCancelTapped = null;
+    await NotificationService.cancelControlNotification();
     _stopLockPolling();
     messages.add(ChatMessage(text: 'Command cancelled.', isUser: false));
     notifyListeners();
