@@ -134,6 +134,11 @@ class CommandState extends ChangeNotifier {
     }
   }
 
+  void addVoiceMessage(ChatMessage message) {
+    messages.add(message);
+    notifyListeners();
+  }
+
   Future<void> releaseLock() async {
     try {
       await _app.client?.releaseLock();

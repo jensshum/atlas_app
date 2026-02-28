@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_state.dart';
+import '../providers/voice_state.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -33,8 +34,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  // Called on every notifyListeners() from CommandState.
-  // Schedules a scroll after the next frame so the new item is laid out.
   void _onStateChange() {
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
@@ -58,23 +57,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CommandState>(
-      builder: (context, state, _) {
+    return Consumer2<CommandState, VoiceState>(
+      builder: (context, state, voice, _) {
         return Column(
           children: [
             _LockBanner(state: state),
+            _VoiceBanner(voice: voice),
             Expanded(
               child: state.messages.isEmpty
                   ? const _EmptyHint()
                   : ListView.builder(
                       controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      itemCount: state.messages.length + (state.loading ? 1 : 0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      itemCount:
+                          state.messages.length + (state.loading ? 1 : 0),
                       itemBuilder: (context, index) {
                         if (index == state.messages.length) {
                           return const _TypingIndicator();
                         }
-                        return _MessageBubble(message: state.messages[index]);
+                        return _MessageBubble(
+                            message: state.messages[index]);
                       },
                     ),
             ),
@@ -82,6 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
               controller: _controller,
               loading: state.loading,
               onSend: () => _send(state),
+              voice: voice,
             ),
           ],
         );
@@ -132,6 +136,76 @@ class _LockBanner extends StatelessWidget {
   }
 }
 
+// ─── Voice banner ─────────────────────────────────────────────────────────────
+
+class _VoiceBanner extends StatelessWidget {
+  final VoiceState voice;
+  const _VoiceBanner({required this.voice});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final error = voice.lastError;
+
+    if (!voice.isActive && error == null) return const SizedBox.shrink();
+
+    if (error != null) {
+      return Material(
+        color: cs.errorContainer,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline, size: 16, color: cs.onErrorContainer),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  error,
+                  style: TextStyle(color: cs.onErrorContainer, fontSize: 13),
+                ),
+              ),
+              TextButton(
+                onPressed: voice.clearError,
+                child: const Text('Dismiss'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final (IconData icon, String label) = switch (voice.status) {
+      VoiceSessionStatus.connecting => (Icons.settings_ethernet, 'Connecting to OpenAI...'),
+      VoiceSessionStatus.processingTool => (Icons.phone_android, 'Atlas is working...'),
+      VoiceSessionStatus.agentSpeaking => (Icons.volume_up, 'Speaking...'),
+      _ => (Icons.mic, 'Listening...'),
+    };
+
+    return Material(
+      color: cs.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: cs.onPrimaryContainer),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(color: cs.onPrimaryContainer, fontSize: 13),
+              ),
+            ),
+            TextButton(
+              onPressed: voice.stopSession,
+              child: const Text('Stop'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Empty hint ───────────────────────────────────────────────────────────────
 
 class _EmptyHint extends StatelessWidget {
@@ -158,6 +232,13 @@ class _EmptyHint extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.outline,
                   fontStyle: FontStyle.italic,
+                ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Or tap the mic to use voice',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
                 ),
           ),
         ],
@@ -270,7 +351,6 @@ class _TypingIndicatorState extends State<_TypingIndicator>
             return AnimatedBuilder(
               animation: _controller,
               builder: (context, _) {
-                // Each dot is offset by 0.2 in the 0–1 cycle so they ripple.
                 final phase = (_controller.value - i * 0.2) % 1.0;
                 final dy = -math.sin(phase * math.pi).clamp(0.0, 1.0) * 5.0;
                 return Transform.translate(
@@ -300,20 +380,44 @@ class _InputBar extends StatelessWidget {
   final TextEditingController controller;
   final bool loading;
   final VoidCallback onSend;
+  final VoiceState voice;
 
   const _InputBar({
     required this.controller,
     required this.loading,
     required this.onSend,
+    required this.voice,
   });
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final voiceActive = voice.isActive;
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
         child: Row(
           children: [
+            // ── Mic button ──────────────────────────────────────────────────
+            IconButton(
+              tooltip: voiceActive ? 'Stop voice' : 'Start voice',
+              onPressed: loading
+                  ? null
+                  : () {
+                      if (voiceActive) {
+                        voice.stopSession();
+                      } else {
+                        voice.startSession();
+                      }
+                    },
+              icon: Icon(
+                voiceActive ? Icons.mic : Icons.mic_none,
+                color: voiceActive ? cs.primary : null,
+              ),
+            ),
+            const SizedBox(width: 4),
+            // ── Text input ──────────────────────────────────────────────────
             Expanded(
               child: TextField(
                 controller: controller,
@@ -321,9 +425,11 @@ class _InputBar extends StatelessWidget {
                 maxLines: 4,
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => onSend(),
-                enabled: !loading,
+                enabled: !loading && !voiceActive,
                 decoration: InputDecoration(
-                  hintText: 'Tell Atlas what to do...',
+                  hintText: voiceActive
+                      ? 'Voice mode active...'
+                      : 'Tell Atlas what to do...',
                   filled: true,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
@@ -335,8 +441,9 @@ class _InputBar extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
+            // ── Send button ─────────────────────────────────────────────────
             FloatingActionButton.small(
-              onPressed: loading ? null : onSend,
+              onPressed: (loading || voiceActive) ? null : onSend,
               child: loading
                   ? const SizedBox(
                       width: 18,

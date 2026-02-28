@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/app_state.dart';
+import 'providers/voice_state.dart';
 import 'screens/home_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/filter_screen.dart';
@@ -22,6 +23,11 @@ class AtlasApp extends StatelessWidget {
         ChangeNotifierProxyProvider<AppState, CommandState>(
           create: (ctx) => CommandState(ctx.read<AppState>()),
           update: (_, app, prev) => prev ?? CommandState(app),
+        ),
+        ChangeNotifierProxyProvider2<AppState, CommandState, VoiceState>(
+          create: (ctx) =>
+              VoiceState(ctx.read<AppState>(), ctx.read<CommandState>()),
+          update: (_, app, cmd, prev) => prev ?? VoiceState(app, cmd),
         ),
         ChangeNotifierProxyProvider<AppState, NotificationsState>(
           create: (ctx) => NotificationsState(ctx.read<AppState>()),
