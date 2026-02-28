@@ -46,16 +46,22 @@ class RealtimeVoiceService {
 
   bool get isConnected => _socket?.readyState == WebSocket.open;
 
-  void muteMic() {
+  Future<void> muteMic() async {
     _muted = true;
     // Commit whatever audio is buffered and ask OpenAI to respond.
     _sendJson({'type': 'input_audio_buffer.commit'});
     _sendJson({'type': 'response.create'});
+    // Stop the recorder so the mic indicator goes away.
+    await _micSub?.cancel();
+    _micSub = null;
+    await _recorder?.stop();
+    _recorder?.dispose();
+    _recorder = null;
   }
 
-  void unmuteMic() {
+  Future<void> unmuteMic() async {
+    await _startMic();
     _muted = false;
-    onStatusChange?.call(VoiceSessionStatus.listening);
   }
 
   Future<void> connect(String apiKey) async {
@@ -92,8 +98,6 @@ class RealtimeVoiceService {
         'tool_choice': 'auto',
       },
     });
-
-    await _startMic();
   }
 
   Future<void> disconnect() async {

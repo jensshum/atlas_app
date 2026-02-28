@@ -46,12 +46,12 @@ class VoiceState extends ChangeNotifier {
     }
   }
 
-  /// Called on hold start. Unmutes mic instantly if pre-connected.
+  /// Called on hold start. Starts mic and unmutes.
   Future<void> startListening() async {
     _lastError = null;
 
     if (_service != null && _service!.isConnected) {
-      _service!.unmuteMic();
+      await _service!.unmuteMic();
       _status = VoiceSessionStatus.listening;
       notifyListeners();
       return;
@@ -63,7 +63,7 @@ class VoiceState extends ChangeNotifier {
 
     try {
       await _connect();
-      _service!.unmuteMic();
+      await _service!.unmuteMic();
     } catch (e) {
       _lastError = 'Connection failed: $e';
       _status = VoiceSessionStatus.idle;
@@ -72,9 +72,9 @@ class VoiceState extends ChangeNotifier {
     }
   }
 
-  /// Called on hold release. Mutes mic but keeps connection alive.
-  void stopListening() {
-    _service?.muteMic();
+  /// Called on hold release. Stops mic but keeps WebSocket alive.
+  Future<void> stopListening() async {
+    await _service?.muteMic();
     if (_status == VoiceSessionStatus.listening) {
       _status = VoiceSessionStatus.idle;
       notifyListeners();
