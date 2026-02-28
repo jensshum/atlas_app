@@ -1,13 +1,12 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../models/models.dart';
 import '../services/realtime_voice_service.dart';
 import 'app_state.dart';
 
 enum VoiceSessionStatus { idle, connecting, listening, processingTool, agentSpeaking }
-
-const _kApiKey = String.fromEnvironment('OPENAI_API_KEY');
 
 class VoiceState extends ChangeNotifier {
   final AppState _app;
@@ -26,8 +25,9 @@ class VoiceState extends ChangeNotifier {
   String? get lastError => _lastError;
 
   Future<void> startSession() async {
-    if (_kApiKey.isEmpty) {
-      _lastError = 'OPENAI_API_KEY not set. Run with --dart-define=OPENAI_API_KEY=sk-...';
+    final apiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
+    if (apiKey.isEmpty) {
+      _lastError = 'OPENAI_API_KEY not set in .env file.';
       notifyListeners();
       return;
     }
@@ -75,7 +75,7 @@ class VoiceState extends ChangeNotifier {
       };
 
     try {
-      await _service!.connect(_kApiKey);
+      await _service!.connect(apiKey);
     } catch (e) {
       _lastError = 'Connection failed: $e';
       _status = VoiceSessionStatus.idle;
