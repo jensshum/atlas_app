@@ -89,6 +89,7 @@ class CommandState extends ChangeNotifier {
   final AppState _app;
   final List<ChatMessage> messages = [];
   bool _loading = false;
+  bool _showOverlay = false;
   bool _cancelled = false;
   LockStatus? _lockStatus;
   Timer? _lockPoller;
@@ -97,10 +98,14 @@ class CommandState extends ChangeNotifier {
   CommandState(this._app);
 
   bool get loading => _loading;
+  bool get showOverlay => _showOverlay;
   LockStatus? get lockStatus => _lockStatus;
   String? get error => _error;
 
-  Future<String> _fetchConfirmation(String prompt) async {
+  /// Calls OpenAI once and returns both a confirmation sentence and whether
+  /// the request requires taking control of the phone.
+  Future<({String text, bool requiresControl})> _fetchConfirmation(
+      String prompt) async {
     final apiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
     if (apiKey.isNotEmpty) {
       try {
@@ -116,43 +121,57 @@ class CommandState extends ChangeNotifier {
               {
                 'role': 'system',
                 'content':
-                    'Rephrase the user\'s message as a single sentence starting with "I will". '
-                    'Convert questions and requests into direct statements. '
-                    'For example: "Can you open LinkedIn?" → "I will open LinkedIn." '
-                    'Keep it concise. Output only the rephrased sentence, nothing else.',
+                    'You are a brief acknowledgement assistant for an AI phone agent. '
+                    'Respond with a JSON object with two fields:\n'
+                    '  "text": a single acknowledgement sentence.\n'
+                    '  "requiresControl": a boolean — true only if the user is asking the AI to perform an action on their phone (e.g. open an app, search, send a message, set an alarm). False for greetings, questions asking for information, or anything that does not require phone interaction.\n'
+                    'For phone-action requests, start "text" with "I will". For non-actions, respond naturally and briefly.\n'
+                    'Return only valid JSON, no markdown.',
               },
               {'role': 'user', 'content': prompt},
             ],
-            'max_tokens': 60,
+            'max_tokens': 80,
             'temperature': 0.3,
           }),
         ).timeout(const Duration(seconds: 5));
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
-          final text =
+          final raw =
               data['choices'][0]['message']['content'] as String? ?? '';
-          if (text.trim().isNotEmpty) return text.trim();
+          final parsed = jsonDecode(raw.trim()) as Map<String, dynamic>;
+          final text = parsed['text'] as String? ?? '';
+          final requiresControl = parsed['requiresControl'] as bool? ?? false;
+          if (text.isNotEmpty) {
+            return (text: text, requiresControl: requiresControl);
+          }
         }
       } catch (_) {}
     }
 
     // Fallback: simple local restatement
     final trimmed = prompt.trim();
+    if (trimmed.endsWith('?')) return (text: 'On it.', requiresControl: false);
     final lower = trimmed[0].toLowerCase() + trimmed.substring(1);
-    final body = lower.endsWith('.') || lower.endsWith('!') || lower.endsWith('?')
+    final body = lower.endsWith('.') || lower.endsWith('!')
         ? lower.substring(0, lower.length - 1)
         : lower;
-    return 'I will $body.';
+    return (text: 'I will $body.', requiresControl: true);
   }
 
   Future<void> sendCommand(String prompt) async {
-    // Always show user message immediately, regardless of connection state.
+    // Show user message and typing indicator immediately.
     messages.add(ChatMessage(text: prompt, isUser: true));
+    _loading = true;
+    _cancelled = false;
+    _error = null;
     notifyListeners();
 
-    final confirmation = await _fetchConfirmation(prompt);
-    messages.add(ChatMessage(text: confirmation, isUser: false));
+    // Fetch AI confirmation while the typing indicator is already visible,
+    // then insert it into the list so it renders before the tool executes.
+    final (:text, :requiresControl) = await _fetchConfirmation(prompt);
+    messages.add(ChatMessage(text: text, isUser: false));
+    _showOverlay = requiresControl;
     notifyListeners();
 
     final client = _app.client;
@@ -160,14 +179,12 @@ class CommandState extends ChangeNotifier {
       messages.add(ChatMessage(
           text: 'Not connected to Atlas. Check the connection status in the toolbar.',
           isUser: false));
+      _loading = false;
+      _showOverlay = false;
       notifyListeners();
       return;
     }
 
-    _loading = true;
-    _cancelled = false;
-    _error = null;
-    notifyListeners();
     _startLockPolling();
 
     try {
@@ -187,6 +204,7 @@ class CommandState extends ChangeNotifier {
       _app.triggerRescanOnError();
     } finally {
       _loading = false;
+      _showOverlay = false;
       _stopLockPolling();
       notifyListeners();
     }
@@ -196,6 +214,7 @@ class CommandState extends ChangeNotifier {
     if (!_loading) return;
     _cancelled = true;
     _loading = false;
+    _showOverlay = false;
     _stopLockPolling();
     messages.add(ChatMessage(text: 'Command cancelled.', isUser: false));
     notifyListeners();
