@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
@@ -15,11 +16,12 @@ class NotificationService {
       settings,
       onDidReceiveNotificationResponse: _onResponse,
     );
-    // Request runtime permission on Android 13+.
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+
+    // Request notification permission on Android 13+.
+    final status = await Permission.notification.status;
+    if (!status.isGranted) {
+      await Permission.notification.request();
+    }
   }
 
   static void _onResponse(NotificationResponse response) {
@@ -27,6 +29,9 @@ class NotificationService {
   }
 
   static Future<void> showControlNotification() async {
+    // Don't attempt if permission wasn't granted.
+    if (!await Permission.notification.isGranted) return;
+
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         'atlas_control',
