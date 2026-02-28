@@ -33,6 +33,7 @@ class RealtimeVoiceService {
 
   final List<int> _audioBuf = [];
   String _aiTextBuf = '';
+  bool _muted = true;
 
   // Track the current function_call item so we know the call_id + name
   // when arguments finish streaming.
@@ -42,6 +43,15 @@ class RealtimeVoiceService {
   RealtimeVoiceService({required ApiClient apiClient}) : _apiClient = apiClient;
 
   // ── Public API ────────────────────────────────────────────────────────────
+
+  bool get isConnected => _socket?.readyState == WebSocket.open;
+
+  void muteMic() => _muted = true;
+
+  void unmuteMic() {
+    _muted = false;
+    onStatusChange?.call(VoiceSessionStatus.listening);
+  }
 
   Future<void> connect(String apiKey) async {
     _socket = await WebSocket.connect(
@@ -112,7 +122,7 @@ class RealtimeVoiceService {
     onStatusChange?.call(VoiceSessionStatus.listening);
 
     _micSub = stream.listen((chunk) {
-      if (_socket?.readyState == WebSocket.open) {
+      if (!_muted && _socket?.readyState == WebSocket.open) {
         _sendJson({
           'type': 'input_audio_buffer.append',
           'audio': base64Encode(Uint8List.fromList(chunk)),
@@ -155,6 +165,7 @@ class RealtimeVoiceService {
       case 'response.audio.delta':
         final delta = event['delta'] as String? ?? '';
         if (delta.isNotEmpty) {
+          _muted = true;
           _audioBuf.addAll(base64Decode(delta));
           onStatusChange?.call(VoiceSessionStatus.agentSpeaking);
         }
@@ -176,7 +187,8 @@ class RealtimeVoiceService {
         }
 
       case 'response.done':
-        onStatusChange?.call(VoiceSessionStatus.listening);
+        // Stay muted until user holds mic again.
+        _muted = true;
 
       case 'response.function_call_arguments.done':
         final callId = event['call_id'] as String? ?? _pendingCallId ?? '';

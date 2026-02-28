@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -17,6 +19,7 @@ class VoiceState extends ChangeNotifier {
 
   RealtimeVoiceService? _service;
   AudioPlayer? _player;
+  StreamSubscription? _playerCompleteSub;
 
   VoiceState(this._app, this._cmdState);
 
@@ -24,7 +27,19 @@ class VoiceState extends ChangeNotifier {
   bool get isActive => _status != VoiceSessionStatus.idle;
   String? get lastError => _lastError;
 
-  Future<void> startSession() async {
+  /// Called on long-press start. Connects if needed, then unmutes mic.
+  Future<void> startListening() async {
+    _lastError = null;
+
+    // Already connected — just unmute.
+    if (_service != null && _service!.isConnected) {
+      _service!.unmuteMic();
+      _status = VoiceSessionStatus.listening;
+      notifyListeners();
+      return;
+    }
+
+    // Need to connect first.
     final apiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
     if (apiKey.isEmpty) {
       _lastError = 'OPENAI_API_KEY not set in .env file.';
@@ -39,10 +54,17 @@ class VoiceState extends ChangeNotifier {
     }
 
     _status = VoiceSessionStatus.connecting;
-    _lastError = null;
     notifyListeners();
 
     _player = AudioPlayer();
+    _playerCompleteSub = _player!.onPlayerComplete.listen((_) {
+      // Audio finished playing — go back to idle (ready for next hold).
+      if (_status == VoiceSessionStatus.agentSpeaking) {
+        _status = VoiceSessionStatus.idle;
+        notifyListeners();
+      }
+    });
+
     _service = RealtimeVoiceService(apiClient: client);
 
     _service!
@@ -69,6 +91,7 @@ class VoiceState extends ChangeNotifier {
         notifyListeners();
       }
       ..onDone = () {
+        // WebSocket closed unexpectedly — clean up.
         _status = VoiceSessionStatus.idle;
         _cleanup();
         notifyListeners();
@@ -76,6 +99,8 @@ class VoiceState extends ChangeNotifier {
 
     try {
       await _service!.connect(apiKey);
+      // connect() starts mic streaming; unmute so audio flows.
+      _service!.unmuteMic();
     } catch (e) {
       _lastError = 'Connection failed: $e';
       _status = VoiceSessionStatus.idle;
@@ -84,13 +109,15 @@ class VoiceState extends ChangeNotifier {
     }
   }
 
-  Future<void> stopSession() async {
-    await _service?.disconnect();
-    await _player?.stop();
-    _cleanup();
-    _status = VoiceSessionStatus.idle;
-    _lastError = null;
-    notifyListeners();
+  /// Called on long-press end. Mutes mic but keeps connection alive.
+  void stopListening() {
+    _service?.muteMic();
+    // If we're still just listening (no response yet), go idle.
+    // If processing/speaking, let it finish — status will update via callbacks.
+    if (_status == VoiceSessionStatus.listening) {
+      _status = VoiceSessionStatus.idle;
+      notifyListeners();
+    }
   }
 
   void clearError() {
@@ -99,6 +126,8 @@ class VoiceState extends ChangeNotifier {
   }
 
   void _cleanup() {
+    _playerCompleteSub?.cancel();
+    _playerCompleteSub = null;
     _service = null;
     _player?.dispose();
     _player = null;
@@ -107,6 +136,7 @@ class VoiceState extends ChangeNotifier {
   @override
   void dispose() {
     _service?.disconnect();
+    _playerCompleteSub?.cancel();
     _player?.dispose();
     super.dispose();
   }

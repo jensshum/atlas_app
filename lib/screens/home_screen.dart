@@ -438,10 +438,10 @@ class _InputBar extends StatelessWidget {
               GestureDetector(
                 onLongPressStart: loading
                     ? null
-                    : (_) => voice.startSession(),
+                    : (_) => voice.startListening(),
                 onLongPressEnd: loading
                     ? null
-                    : (_) => voice.stopSession(),
+                    : (_) => voice.stopListening(),
                 child: Container(
                   width: 40,
                   height: 40,
