@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 import '../api/api_client.dart';
 import '../api/discovery_service.dart';
 import '../models/models.dart';
@@ -97,9 +100,59 @@ class CommandState extends ChangeNotifier {
   LockStatus? get lockStatus => _lockStatus;
   String? get error => _error;
 
+  Future<String> _fetchConfirmation(String prompt) async {
+    final apiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
+    if (apiKey.isNotEmpty) {
+      try {
+        final response = await http.post(
+          Uri.parse('https://api.openai.com/v1/chat/completions'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $apiKey',
+          },
+          body: jsonEncode({
+            'model': 'gpt-4o-mini',
+            'messages': [
+              {
+                'role': 'system',
+                'content':
+                    'Rephrase the user\'s message as a single sentence starting with "I will". '
+                    'Convert questions and requests into direct statements. '
+                    'For example: "Can you open LinkedIn?" → "I will open LinkedIn." '
+                    'Keep it concise. Output only the rephrased sentence, nothing else.',
+              },
+              {'role': 'user', 'content': prompt},
+            ],
+            'max_tokens': 60,
+            'temperature': 0.3,
+          }),
+        ).timeout(const Duration(seconds: 5));
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          final text =
+              data['choices'][0]['message']['content'] as String? ?? '';
+          if (text.trim().isNotEmpty) return text.trim();
+        }
+      } catch (_) {}
+    }
+
+    // Fallback: simple local restatement
+    final trimmed = prompt.trim();
+    final lower = trimmed[0].toLowerCase() + trimmed.substring(1);
+    final body = lower.endsWith('.') || lower.endsWith('!') || lower.endsWith('?')
+        ? lower.substring(0, lower.length - 1)
+        : lower;
+    return 'I will $body.';
+  }
+
   Future<void> sendCommand(String prompt) async {
     // Always show user message immediately, regardless of connection state.
     messages.add(ChatMessage(text: prompt, isUser: true));
+    notifyListeners();
+
+    final confirmation = await _fetchConfirmation(prompt);
+    messages.add(ChatMessage(text: confirmation, isUser: false));
     notifyListeners();
 
     final client = _app.client;
