@@ -196,17 +196,7 @@ class _VoiceBanner extends StatelessWidget {
               ),
             ),
           ),
-          TextButton(
-            onPressed: voice.stopSession,
-            style: TextButton.styleFrom(
-              foregroundColor: AtlasColors.error,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: const Text('Stop', style: TextStyle(fontSize: 13)),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
     );
@@ -260,7 +250,7 @@ class _EmptyHint extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Or tap the mic to use voice',
+            'Or hold the mic to use voice',
             style: TextStyle(
               color: AtlasColors.textTertiary,
               fontSize: 13,
@@ -445,37 +435,33 @@ class _InputBar extends StatelessWidget {
           child: Row(
             children: [
               // ── Mic button ──
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: voiceActive
-                      ? AtlasColors.gold.withValues(alpha: 0.12)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: IconButton(
-                  tooltip:
-                      voiceActive ? 'Stop voice' : 'Start voice',
-                  onPressed: loading
-                      ? null
-                      : () {
-                          if (voiceActive) {
-                            voice.stopSession();
-                          } else {
-                            voice.startSession();
-                          }
-                        },
-                  icon: Icon(
+              GestureDetector(
+                onLongPressStart: loading
+                    ? null
+                    : (_) => voice.startSession(),
+                onLongPressEnd: loading
+                    ? null
+                    : (_) => voice.stopSession(),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: voiceActive
+                        ? AtlasColors.gold.withValues(alpha: 0.12)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(
                     voiceActive
                         ? Icons.mic_rounded
                         : Icons.mic_none_rounded,
                     size: 22,
-                    color: voiceActive
-                        ? AtlasColors.gold
-                        : AtlasColors.textTertiary,
+                    color: loading
+                        ? AtlasColors.textTertiary.withValues(alpha: 0.4)
+                        : voiceActive
+                            ? AtlasColors.gold
+                            : AtlasColors.textTertiary,
                   ),
-                  padding: EdgeInsets.zero,
                 ),
               ),
               const SizedBox(width: 4),
