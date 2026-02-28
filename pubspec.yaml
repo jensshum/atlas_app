@@ -21,6 +21,7 @@ dependencies:
   audioplayers: ^6.1.0
   google_fonts: ^6.2.1
   flutter_dotenv: ^5.2.1
+  flutter_local_notifications: ^18.0.1
 
 dev_dependencies:
   flutter_test:
