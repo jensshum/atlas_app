@@ -23,6 +23,8 @@ class AppState extends ChangeNotifier {
   int get scanProgress => _scanProgress;
   int get scanTotal => _scanTotal;
 
+  Timer? _retryTimer;
+
   AppState() {
     _init();
   }
@@ -48,13 +50,20 @@ class AppState extends ChangeNotifier {
       _serverIp = ip;
       _client = ApiClient('http://$ip:$_port');
       _connectionState = ServerConnectionState.connected;
+      _retryTimer?.cancel();
+      _retryTimer = null;
     } else {
       _connectionState = ServerConnectionState.notFound;
+      // Auto-retry every 5 seconds until connected.
+      _retryTimer?.cancel();
+      _retryTimer = Timer(const Duration(seconds: 5), _discover);
     }
     notifyListeners();
   }
 
   Future<void> rescan() async {
+    _retryTimer?.cancel();
+    _retryTimer = null;
     await DiscoveryService.clearCachedIp();
     _serverIp = null;
     _client = null;
