@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_state.dart';
 import '../providers/voice_state.dart';
+import '../theme/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -69,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   : ListView.builder(
                       controller: _scrollController,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                          horizontal: 16, vertical: 12),
                       itemCount:
                           state.messages.length + (state.loading ? 1 : 0),
                       itemBuilder: (context, index) {
@@ -106,31 +107,50 @@ class _LockBanner extends StatelessWidget {
     if (!state.loading || lock == null) return const SizedBox.shrink();
 
     final ownerText = lock.ownerType != null ? ' (${lock.ownerType})' : '';
-    return Material(
-      color: Theme.of(context).colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: Row(
-          children: [
-            const SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(strokeWidth: 2)),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                lock.locked
-                    ? 'Agent working$ownerText...'
-                    : 'Waiting for lock...',
-                style: Theme.of(context).textTheme.bodySmall,
+    return Container(
+      decoration: const BoxDecoration(
+        color: AtlasColors.goldSurface,
+        border: Border(
+          bottom:
+              BorderSide(color: AtlasColors.goldDark, width: 0.5),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AtlasColors.gold,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              lock.locked
+                  ? 'Agent working$ownerText...'
+                  : 'Waiting for lock...',
+              style: const TextStyle(
+                color: AtlasColors.gold,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            TextButton(
-              onPressed: state.releaseLock,
-              child: const Text('Stop'),
+          ),
+          TextButton(
+            onPressed: state.releaseLock,
+            style: TextButton.styleFrom(
+              foregroundColor: AtlasColors.error,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-          ],
-        ),
+            child: const Text('Stop', style: TextStyle(fontSize: 13)),
+          ),
+        ],
       ),
     );
   }
@@ -144,63 +164,112 @@ class _VoiceBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final error = voice.lastError;
 
     if (!voice.isActive && error == null) return const SizedBox.shrink();
 
     if (error != null) {
-      return Material(
-        color: cs.errorContainer,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          child: Row(
-            children: [
-              Icon(Icons.error_outline, size: 16, color: cs.onErrorContainer),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  error,
-                  style: TextStyle(color: cs.onErrorContainer, fontSize: 13),
-                ),
-              ),
-              TextButton(
-                onPressed: voice.clearError,
-                child: const Text('Dismiss'),
-              ),
-            ],
+      return Container(
+        decoration: const BoxDecoration(
+          color: AtlasColors.errorSurface,
+          border: Border(
+            bottom: BorderSide(
+              color: AtlasColors.error,
+              width: 0.5,
+            ),
           ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded,
+                size: 16, color: AtlasColors.error),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                error,
+                style: const TextStyle(
+                    color: AtlasColors.error, fontSize: 13),
+              ),
+            ),
+            TextButton(
+              onPressed: voice.clearError,
+              style: TextButton.styleFrom(
+                foregroundColor: AtlasColors.error,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child:
+                  const Text('Dismiss', style: TextStyle(fontSize: 13)),
+            ),
+          ],
         ),
       );
     }
 
-    final (IconData icon, String label) = switch (voice.status) {
-      VoiceSessionStatus.connecting => (Icons.settings_ethernet, 'Connecting to OpenAI...'),
-      VoiceSessionStatus.processingTool => (Icons.phone_android, 'Atlas is working...'),
-      VoiceSessionStatus.agentSpeaking => (Icons.volume_up, 'Speaking...'),
-      _ => (Icons.mic, 'Listening...'),
+    final (IconData icon, String label, Color color) =
+        switch (voice.status) {
+      VoiceSessionStatus.connecting => (
+        Icons.settings_ethernet_rounded,
+        'Connecting to OpenAI...',
+        AtlasColors.gold,
+      ),
+      VoiceSessionStatus.processingTool => (
+        Icons.phone_android_rounded,
+        'Atlas is working...',
+        AtlasColors.gold,
+      ),
+      VoiceSessionStatus.agentSpeaking => (
+        Icons.volume_up_rounded,
+        'Speaking...',
+        AtlasColors.info,
+      ),
+      _ => (
+        Icons.mic_rounded,
+        'Listening...',
+        AtlasColors.success,
+      ),
     };
 
-    return Material(
-      color: cs.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: cs.onPrimaryContainer),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(color: cs.onPrimaryContainer, fontSize: 13),
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        border: Border(
+          bottom: BorderSide(
+            color: color.withValues(alpha: 0.3),
+            width: 0.5,
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            TextButton(
-              onPressed: voice.stopSession,
-              child: const Text('Stop'),
+          ),
+          TextButton(
+            onPressed: voice.stopSession,
+            style: TextButton.styleFrom(
+              foregroundColor: AtlasColors.error,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-          ],
-        ),
+            child: const Text('Stop', style: TextStyle(fontSize: 13)),
+          ),
+        ],
       ),
     );
   }
@@ -217,29 +286,47 @@ class _EmptyHint extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.phone_android,
-              size: 64, color: Theme.of(context).colorScheme.outline),
-          const SizedBox(height: 16),
-          Text(
-            'Send a command to Atlas',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AtlasColors.goldSurface,
+              border: Border.all(
+                color: AtlasColors.gold.withValues(alpha: 0.15),
+              ),
+            ),
+            child: Icon(
+              Icons.terminal_rounded,
+              size: 36,
+              color: AtlasColors.gold.withValues(alpha: 0.5),
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(
+          const SizedBox(height: 24),
+          const Text(
+            'Send a command to Atlas',
+            style: TextStyle(
+              color: AtlasColors.textSecondary,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
             '"Open Chrome and search for the weather"',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                  fontStyle: FontStyle.italic,
-                ),
+            style: TextStyle(
+              color: AtlasColors.textTertiary,
+              fontSize: 13,
+              fontStyle: FontStyle.italic,
+            ),
           ),
           const SizedBox(height: 12),
-          Text(
+          const Text(
             'Or tap the mic to use voice',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+            style: TextStyle(
+              color: AtlasColors.textTertiary,
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -255,24 +342,31 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final isUser = message.isUser;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints:
-            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
+        ),
+        margin: const EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
         decoration: BoxDecoration(
-          color: isUser ? cs.primary : cs.surfaceContainerHighest,
+          color: isUser
+              ? AtlasColors.goldSurface
+              : AtlasColors.surfaceContainer,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isUser ? 16 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 16),
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(isUser ? 18 : 4),
+            bottomRight: Radius.circular(isUser ? 4 : 18),
+          ),
+          border: Border.all(
+            color: isUser
+                ? AtlasColors.gold.withValues(alpha: 0.12)
+                : AtlasColors.border,
+            width: 0.5,
           ),
         ),
         child: Column(
@@ -280,16 +374,22 @@ class _MessageBubble extends StatelessWidget {
           children: [
             Text(
               message.text,
-              style: TextStyle(color: isUser ? cs.onPrimary : cs.onSurface),
+              style: TextStyle(
+                color: isUser
+                    ? AtlasColors.goldLight
+                    : AtlasColors.textPrimary,
+                fontSize: 14,
+                height: 1.45,
+              ),
             ),
             if (message.turns != null) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 5),
               Text(
                 '${message.turns} turns',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 11,
-                  color: (isUser ? cs.onPrimary : cs.onSurface)
-                      .withValues(alpha: 0.6),
+                  color: AtlasColors.textTertiary,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
@@ -330,20 +430,20 @@ class _TypingIndicatorState extends State<_TypingIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        margin: const EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest,
+          color: AtlasColors.surfaceContainer,
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
-            bottomRight: Radius.circular(16),
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
+            bottomRight: Radius.circular(18),
             bottomLeft: Radius.circular(4),
           ),
+          border: Border.all(color: AtlasColors.border, width: 0.5),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -352,15 +452,16 @@ class _TypingIndicatorState extends State<_TypingIndicator>
               animation: _controller,
               builder: (context, _) {
                 final phase = (_controller.value - i * 0.2) % 1.0;
-                final dy = -math.sin(phase * math.pi).clamp(0.0, 1.0) * 5.0;
+                final dy =
+                    -math.sin(phase * math.pi).clamp(0.0, 1.0) * 4.0;
                 return Transform.translate(
                   offset: Offset(0, dy),
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 3),
-                    width: 8,
-                    height: 8,
+                    width: 7,
+                    height: 7,
                     decoration: BoxDecoration(
-                      color: cs.onSurfaceVariant,
+                      color: AtlasColors.gold.withValues(alpha: 0.5),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -391,67 +492,147 @@ class _InputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final voiceActive = voice.isActive;
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-        child: Row(
-          children: [
-            // ── Mic button ──────────────────────────────────────────────────
-            IconButton(
-              tooltip: voiceActive ? 'Stop voice' : 'Start voice',
-              onPressed: loading
-                  ? null
-                  : () {
-                      if (voiceActive) {
-                        voice.stopSession();
-                      } else {
-                        voice.startSession();
-                      }
-                    },
-              icon: Icon(
-                voiceActive ? Icons.mic : Icons.mic_none,
-                color: voiceActive ? cs.primary : null,
-              ),
-            ),
-            const SizedBox(width: 4),
-            // ── Text input ──────────────────────────────────────────────────
-            Expanded(
-              child: TextField(
-                controller: controller,
-                minLines: 1,
-                maxLines: 4,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => onSend(),
-                enabled: !loading && !voiceActive,
-                decoration: InputDecoration(
-                  hintText: voiceActive
-                      ? 'Voice mode active...'
-                      : 'Tell Atlas what to do...',
-                  filled: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
+    return Container(
+      decoration: const BoxDecoration(
+        color: AtlasColors.surface,
+        border: Border(
+          top: BorderSide(color: AtlasColors.border, width: 0.5),
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 10, 12, 10),
+          child: Row(
+            children: [
+              // ── Mic button ──
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: voiceActive
+                      ? AtlasColors.gold.withValues(alpha: 0.12)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: IconButton(
+                  tooltip:
+                      voiceActive ? 'Stop voice' : 'Start voice',
+                  onPressed: loading
+                      ? null
+                      : () {
+                          if (voiceActive) {
+                            voice.stopSession();
+                          } else {
+                            voice.startSession();
+                          }
+                        },
+                  icon: Icon(
+                    voiceActive
+                        ? Icons.mic_rounded
+                        : Icons.mic_none_rounded,
+                    size: 22,
+                    color: voiceActive
+                        ? AtlasColors.gold
+                        : AtlasColors.textTertiary,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
+                  padding: EdgeInsets.zero,
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            // ── Send button ─────────────────────────────────────────────────
-            FloatingActionButton.small(
-              onPressed: (loading || voiceActive) ? null : onSend,
-              child: loading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.send),
-            ),
-          ],
+              const SizedBox(width: 4),
+              // ── Text input ──
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  minLines: 1,
+                  maxLines: 4,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => onSend(),
+                  enabled: !loading && !voiceActive,
+                  style: const TextStyle(fontSize: 14),
+                  cursorColor: AtlasColors.gold,
+                  decoration: InputDecoration(
+                    hintText: voiceActive
+                        ? 'Voice mode active...'
+                        : 'Tell Atlas what to do...',
+                    filled: true,
+                    fillColor: AtlasColors.surfaceContainer,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: const BorderSide(
+                        color: AtlasColors.border,
+                        width: 0.5,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: const BorderSide(
+                        color: AtlasColors.border,
+                        width: 0.5,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide(
+                        color:
+                            AtlasColors.gold.withValues(alpha: 0.5),
+                        width: 1,
+                      ),
+                    ),
+                    disabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: const BorderSide(
+                        color: AtlasColors.border,
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // ── Send button ──
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: (loading || voiceActive)
+                      ? AtlasColors.surfaceContainerHigh
+                      : AtlasColors.gold,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: (loading || voiceActive) ? null : onSend,
+                    borderRadius: BorderRadius.circular(22),
+                    child: Center(
+                      child: loading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AtlasColors.textSecondary,
+                              ),
+                            )
+                          : Icon(
+                              Icons.arrow_upward_rounded,
+                              size: 20,
+                              color: (loading || voiceActive)
+                                  ? AtlasColors.textTertiary
+                                  : const Color(0xFF1A1507),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:network_info_plus/network_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _prefKey = 'atlas_server_ip';
@@ -36,9 +37,18 @@ class DiscoveryService {
     return false;
   }
 
+  /// Request location permission needed for WiFi IP on Android 12+.
+  static Future<bool> _ensureLocationPermission() async {
+    var status = await Permission.locationWhenInUse.status;
+    if (status.isGranted) return true;
+    status = await Permission.locationWhenInUse.request();
+    return status.isGranted;
+  }
+
   /// Derive the /24 subnet from the device's WiFi IP.
   static Future<String?> _getSubnet() async {
     try {
+      await _ensureLocationPermission();
       final info = NetworkInfo();
       final ip = await info.getWifiIP();
       if (ip == null) return null;

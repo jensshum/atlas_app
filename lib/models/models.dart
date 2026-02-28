@@ -111,10 +111,18 @@ class ScheduledTask {
         prompt: json['prompt'] as String,
         cronExpression: json['cronExpression'] as String,
         enabled: json['enabled'] as bool,
-        createdAt: json['createdAt']?.toString() ?? '',
-        lastRunAt: json['lastRunAt'] as String?,
+        createdAt: _toIsoString(json['createdAt']),
+        lastRunAt: json['lastRunAt'] != null ? _toIsoString(json['lastRunAt']) : null,
         lastResult: json['lastResult'] as String?,
       );
+
+  /// Convert a value that could be a number (ms timestamp) or ISO string to ISO string.
+  static String _toIsoString(dynamic value) {
+    if (value is num) {
+      return DateTime.fromMillisecondsSinceEpoch(value.toInt()).toIso8601String();
+    }
+    return value?.toString() ?? '';
+  }
 
   ScheduledTask copyWith({bool? enabled}) => ScheduledTask(
         id: id,

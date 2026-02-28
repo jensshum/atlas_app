@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'providers/app_state.dart';
 import 'providers/voice_state.dart';
@@ -7,8 +9,17 @@ import 'screens/notifications_screen.dart';
 import 'screens/filter_screen.dart';
 import 'screens/scheduler_screen.dart';
 import 'screens/settings_screen.dart';
+import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load();
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+    systemNavigationBarColor: AtlasColors.surface,
+    systemNavigationBarIconBrightness: Brightness.light,
+  ));
   runApp(const AtlasApp());
 }
 
@@ -45,20 +56,7 @@ class AtlasApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Atlas',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF5C6BC0),
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-        ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF5C6BC0),
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
-        ),
+        theme: AtlasTheme.dark,
         home: const _AppShell(),
       ),
     );
@@ -77,33 +75,30 @@ class _AppShellState extends State<_AppShell> {
 
   static const _destinations = [
     NavigationDestination(
-        icon: Icon(Icons.chat_bubble_outline),
-        selectedIcon: Icon(Icons.chat_bubble),
-        label: 'Command'),
+      icon: Icon(Icons.terminal_rounded),
+      selectedIcon: Icon(Icons.terminal_rounded),
+      label: 'Command',
+    ),
     NavigationDestination(
-        icon: Icon(Icons.notifications_outlined),
-        selectedIcon: Icon(Icons.notifications),
-        label: 'Notifications'),
+      icon: Icon(Icons.notifications_none_rounded),
+      selectedIcon: Icon(Icons.notifications_rounded),
+      label: 'Alerts',
+    ),
     NavigationDestination(
-        icon: Icon(Icons.filter_list),
-        selectedIcon: Icon(Icons.filter_list),
-        label: 'Filter'),
+      icon: Icon(Icons.tune_rounded),
+      selectedIcon: Icon(Icons.tune_rounded),
+      label: 'Filter',
+    ),
     NavigationDestination(
-        icon: Icon(Icons.schedule_outlined),
-        selectedIcon: Icon(Icons.schedule),
-        label: 'Scheduler'),
+      icon: Icon(Icons.event_repeat_rounded),
+      selectedIcon: Icon(Icons.event_repeat_rounded),
+      label: 'Schedule',
+    ),
     NavigationDestination(
-        icon: Icon(Icons.settings_outlined),
-        selectedIcon: Icon(Icons.settings),
-        label: 'Settings'),
-  ];
-
-  static const _titles = [
-    'Command',
-    'Notifications',
-    'Filter',
-    'Scheduler',
-    'Settings'
+      icon: Icon(Icons.settings_outlined),
+      selectedIcon: Icon(Icons.settings_rounded),
+      label: 'Settings',
+    ),
   ];
 
   @override
@@ -114,9 +109,26 @@ class _AppShellState extends State<_AppShell> {
           appBar: AppBar(
             title: Row(
               children: [
-                Text(_titles[_selectedIndex]),
+                const Text(
+                  'ATLAS',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 2.5,
+                    color: AtlasColors.gold,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AtlasColors.gold.withValues(alpha: 0.4),
+                  ),
+                ),
                 const Spacer(),
-                _ConnectionChip(app: app),
+                _ConnectionBadge(app: app),
               ],
             ),
           ),
@@ -130,10 +142,18 @@ class _AppShellState extends State<_AppShell> {
               SettingsScreen(),
             ],
           ),
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-            destinations: _destinations,
+          bottomNavigationBar: Container(
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: AtlasColors.border, width: 0.5),
+              ),
+            ),
+            child: NavigationBar(
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: (i) =>
+                  setState(() => _selectedIndex = i),
+              destinations: _destinations,
+            ),
           ),
         );
       },
@@ -141,43 +161,80 @@ class _AppShellState extends State<_AppShell> {
   }
 }
 
-class _ConnectionChip extends StatelessWidget {
+class _ConnectionBadge extends StatelessWidget {
   final AppState app;
-  const _ConnectionChip({required this.app});
+  const _ConnectionBadge({required this.app});
 
   @override
   Widget build(BuildContext context) {
-    switch (app.connectionState) {
-      case ServerConnectionState.searching:
-        return Chip(
-          avatar: const SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(strokeWidth: 2),
+    final isConnected =
+        app.connectionState == ServerConnectionState.connected;
+    final isSearching =
+        app.connectionState == ServerConnectionState.searching;
+
+    final color = isConnected
+        ? AtlasColors.success
+        : isSearching
+            ? AtlasColors.gold
+            : AtlasColors.error;
+
+    return GestureDetector(
+      onTap: isConnected ? null : app.rescan,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: color.withValues(alpha: 0.25),
+            width: 0.5,
           ),
-          label: Text(
-            'Scanning ${app.scanProgress}/${app.scanTotal}',
-            style: const TextStyle(fontSize: 12),
-          ),
-          padding: EdgeInsets.zero,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        );
-      case ServerConnectionState.notFound:
-        return ActionChip(
-          avatar: const Icon(Icons.wifi_off, size: 16),
-          label: const Text('Not found — tap to retry', style: TextStyle(fontSize: 12)),
-          padding: EdgeInsets.zero,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          onPressed: app.rescan,
-        );
-      case ServerConnectionState.connected:
-        return Chip(
-          avatar: const Icon(Icons.wifi, size: 16),
-          label: Text(app.serverIp ?? '', style: const TextStyle(fontSize: 12)),
-          padding: EdgeInsets.zero,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        );
-    }
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSearching)
+              SizedBox(
+                width: 10,
+                height: 10,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  color: color,
+                ),
+              )
+            else
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color,
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.5),
+                      blurRadius: 6,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(width: 6),
+            Text(
+              isSearching
+                  ? '${app.scanProgress}/${app.scanTotal}'
+                  : isConnected
+                      ? app.serverIp ?? ''
+                      : 'Offline',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: color,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
-
