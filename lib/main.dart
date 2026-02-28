@@ -160,7 +160,7 @@ class _AppShellState extends State<_AppShell> {
               ),
             ),
             // ── Global "Atlas is controlling" overlay ──────────────────────
-            if (cmd.loading) ...[
+            if (cmd.showOverlay) ...[
               Positioned(
                 top: 0,
                 left: 0,
@@ -298,9 +298,6 @@ class _AtlasControlBannerState extends State<_AtlasControlBanner>
           return Container(
             decoration: BoxDecoration(
               color: AtlasColors.goldSurface,
-              border: const Border(
-                bottom: BorderSide(color: AtlasColors.goldDark, width: 1),
-              ),
               boxShadow: [
                 BoxShadow(
                   color: AtlasColors.gold.withValues(alpha: 0.08 + glow * 0.10),
@@ -311,63 +308,28 @@ class _AtlasControlBannerState extends State<_AtlasControlBanner>
               ],
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Pulsing lock icon
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AtlasColors.gold
-                            .withValues(alpha: 0.08 + glow * 0.10),
-                      ),
-                    ),
-                    const Icon(
-                      Icons.phonelink_lock_rounded,
-                      size: 15,
-                      color: AtlasColors.gold,
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'ATLAS IS CONTROLLING YOUR PHONE',
-                        style: TextStyle(
-                          color: AtlasColors.gold,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                      SizedBox(height: 1),
-                      Text(
-                        'Executing command — tap "Take Control" to cancel',
-                        style: TextStyle(
-                          color: AtlasColors.goldDark,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.1,
-                        ),
-                      ),
-                    ],
+                Text(
+                  'ATLAS IS CONTROLLING YOUR PHONE',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AtlasColors.gold,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
                   ),
                 ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    color: AtlasColors.gold.withValues(alpha: 0.5 + glow * 0.5),
+                const SizedBox(height: 2),
+                Text(
+                  'Executing command — tap "Take Control" to cancel',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AtlasColors.gold.withValues(alpha: 0.6),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.1,
                   ),
                 ),
               ],
