@@ -16,6 +16,7 @@ class VoiceState extends ChangeNotifier {
 
   VoiceSessionStatus _status = VoiceSessionStatus.idle;
   String? _lastError;
+  bool _preconnecting = false;
 
   RealtimeVoiceService? _service;
   AudioPlayer? _player;
@@ -27,11 +28,24 @@ class VoiceState extends ChangeNotifier {
   bool get isActive => _status != VoiceSessionStatus.idle;
   String? get lastError => _lastError;
 
-  /// Called on long-press start. Connects if needed, then unmutes mic.
+  /// Eagerly connect to OpenAI so the mic is instant when held.
+  /// Called from the home screen on load. Silent — no status change.
+  Future<void> preconnect() async {
+    if (_preconnecting || (_service != null && _service!.isConnected)) return;
+    _preconnecting = true;
+    try {
+      await _connect();
+    } catch (_) {
+      // Preconnect failure is silent — startListening will retry.
+    } finally {
+      _preconnecting = false;
+    }
+  }
+
+  /// Called on hold start. Unmutes mic instantly if pre-connected.
   Future<void> startListening() async {
     _lastError = null;
 
-    // Already connected — just unmute.
     if (_service != null && _service!.isConnected) {
       _service!.unmuteMic();
       _status = VoiceSessionStatus.listening;
@@ -39,26 +53,53 @@ class VoiceState extends ChangeNotifier {
       return;
     }
 
-    // Need to connect first.
+    // Not pre-connected — connect now (fallback).
+    _status = VoiceSessionStatus.connecting;
+    notifyListeners();
+
+    try {
+      await _connect();
+      _service!.unmuteMic();
+    } catch (e) {
+      _lastError = 'Connection failed: $e';
+      _status = VoiceSessionStatus.idle;
+      _cleanup();
+      notifyListeners();
+    }
+  }
+
+  /// Called on hold release. Mutes mic but keeps connection alive.
+  void stopListening() {
+    _service?.muteMic();
+    if (_status == VoiceSessionStatus.listening) {
+      _status = VoiceSessionStatus.idle;
+      notifyListeners();
+    }
+  }
+
+  void clearError() {
+    _lastError = null;
+    notifyListeners();
+  }
+
+  // ── Internal ──────────────────────────────────────────────────────────────
+
+  Future<void> _connect() async {
     final apiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
     if (apiKey.isEmpty) {
       _lastError = 'OPENAI_API_KEY not set in .env file.';
       notifyListeners();
-      return;
+      throw Exception(_lastError);
     }
     final client = _app.client;
     if (client == null) {
       _lastError = 'Not connected to Atlas.';
       notifyListeners();
-      return;
+      throw Exception(_lastError);
     }
-
-    _status = VoiceSessionStatus.connecting;
-    notifyListeners();
 
     _player = AudioPlayer();
     _playerCompleteSub = _player!.onPlayerComplete.listen((_) {
-      // Audio finished playing — go back to idle (ready for next hold).
       if (_status == VoiceSessionStatus.agentSpeaking) {
         _status = VoiceSessionStatus.idle;
         notifyListeners();
@@ -91,38 +132,12 @@ class VoiceState extends ChangeNotifier {
         notifyListeners();
       }
       ..onDone = () {
-        // WebSocket closed unexpectedly — clean up.
         _status = VoiceSessionStatus.idle;
         _cleanup();
         notifyListeners();
       };
 
-    try {
-      await _service!.connect(apiKey);
-      // connect() starts mic streaming; unmute so audio flows.
-      _service!.unmuteMic();
-    } catch (e) {
-      _lastError = 'Connection failed: $e';
-      _status = VoiceSessionStatus.idle;
-      _cleanup();
-      notifyListeners();
-    }
-  }
-
-  /// Called on long-press end. Mutes mic but keeps connection alive.
-  void stopListening() {
-    _service?.muteMic();
-    // If we're still just listening (no response yet), go idle.
-    // If processing/speaking, let it finish — status will update via callbacks.
-    if (_status == VoiceSessionStatus.listening) {
-      _status = VoiceSessionStatus.idle;
-      notifyListeners();
-    }
-  }
-
-  void clearError() {
-    _lastError = null;
-    notifyListeners();
+    await _service!.connect(apiKey);
   }
 
   void _cleanup() {

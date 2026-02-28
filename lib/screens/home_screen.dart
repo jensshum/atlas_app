@@ -24,6 +24,8 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _commandState = context.read<CommandState>();
       _commandState.addListener(_onStateChange);
+      // Pre-connect to OpenAI so mic hold is instant.
+      context.read<VoiceState>().preconnect();
     });
   }
 
