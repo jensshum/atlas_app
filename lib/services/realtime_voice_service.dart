@@ -46,7 +46,12 @@ class RealtimeVoiceService {
 
   bool get isConnected => _socket?.readyState == WebSocket.open;
 
-  void muteMic() => _muted = true;
+  void muteMic() {
+    _muted = true;
+    // Commit whatever audio is buffered and ask OpenAI to respond.
+    _sendJson({'type': 'input_audio_buffer.commit'});
+    _sendJson({'type': 'response.create'});
+  }
 
   void unmuteMic() {
     _muted = false;
