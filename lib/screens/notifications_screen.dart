@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../providers/app_state.dart';
+import '../theme/app_theme.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -37,20 +38,44 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             _StatusHeader(state: state),
             if (state.error != null)
               Padding(
-                padding: const EdgeInsets.all(8),
-                child: Text(state.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AtlasColors.errorSurface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AtlasColors.error.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Text(
+                    state.error!,
+                    style: const TextStyle(
+                        color: AtlasColors.error, fontSize: 12),
+                  ),
+                ),
               ),
             Expanded(
               child: state.loadingLog && state.log.isEmpty
                   ? const Center(child: CircularProgressIndicator())
                   : RefreshIndicator(
                       onRefresh: state.refreshLog,
+                      color: AtlasColors.gold,
                       child: state.log.isEmpty
                           ? const _EmptyLog()
-                          : ListView.builder(
+                          : ListView.separated(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
                               itemCount: state.log.length,
-                              itemBuilder: (context, index) =>
-                                  _LogEntry(entry: state.log[state.log.length - 1 - index]),
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 6),
+                              itemBuilder: (context, index) => _LogEntry(
+                                entry: state
+                                    .log[state.log.length - 1 - index],
+                              ),
                             ),
                     ),
             ),
@@ -61,6 +86,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 }
 
+// ─── Status header ────────────────────────────────────────────────────────────
+
 class _StatusHeader extends StatelessWidget {
   final NotificationsState state;
   const _StatusHeader({required this.state});
@@ -70,34 +97,114 @@ class _StatusHeader extends StatelessWidget {
     final status = state.status;
     final running = status?.running ?? false;
 
-    return Card(
-      margin: const EdgeInsets.all(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Notification Watcher', style: Theme.of(context).textTheme.titleMedium),
-                if (status != null)
-                  Text(
-                    'Queue: ${status.queueLength} • Filters: ${status.filterCount}',
-                    style: Theme.of(context).textTheme.bodySmall,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: running
+                      ? AtlasColors.success.withValues(alpha: 0.1)
+                      : AtlasColors.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: running
+                        ? AtlasColors.success.withValues(alpha: 0.3)
+                        : AtlasColors.border,
                   ),
-              ],
-            ),
-            const Spacer(),
-            Switch(
-              value: running,
-              onChanged: (val) => state.toggleWatcher(val),
-            ),
-          ],
+                ),
+                child: Icon(
+                  running
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_off_rounded,
+                  color: running
+                      ? AtlasColors.success
+                      : AtlasColors.textTertiary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Notification Watcher',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        color: AtlasColors.textPrimary,
+                      ),
+                    ),
+                    if (status != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Row(
+                          children: [
+                            _MiniStat(
+                              label: 'Queue',
+                              value: '${status.queueLength}',
+                            ),
+                            const SizedBox(width: 12),
+                            _MiniStat(
+                              label: 'Filters',
+                              value: '${status.filterCount}',
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: running,
+                onChanged: (val) => state.toggleWatcher(val),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+class _MiniStat extends StatelessWidget {
+  final String label;
+  final String value;
+  const _MiniStat({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            color: AtlasColors.textPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AtlasColors.textTertiary,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Empty log ────────────────────────────────────────────────────────────────
 
 class _EmptyLog extends StatelessWidget {
   const _EmptyLog();
@@ -106,13 +213,32 @@ class _EmptyLog extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       children: [
-        const SizedBox(height: 80),
+        const SizedBox(height: 100),
         Center(
           child: Column(
             children: [
-              Icon(Icons.notifications_none, size: 48, color: Theme.of(context).colorScheme.outline),
-              const SizedBox(height: 12),
-              Text('No notifications logged yet', style: TextStyle(color: Theme.of(context).colorScheme.outline)),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AtlasColors.surfaceContainer,
+                  border: Border.all(color: AtlasColors.border),
+                ),
+                child: const Icon(
+                  Icons.notifications_none_rounded,
+                  size: 28,
+                  color: AtlasColors.textTertiary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No notifications logged yet',
+                style: TextStyle(
+                  color: AtlasColors.textTertiary,
+                  fontSize: 14,
+                ),
+              ),
             ],
           ),
         ),
@@ -121,24 +247,19 @@ class _EmptyLog extends StatelessWidget {
   }
 }
 
+// ─── Log entry ────────────────────────────────────────────────────────────────
+
 class _LogEntry extends StatelessWidget {
   final NotificationLogEntry entry;
   const _LogEntry({required this.entry});
 
   static const _actionColors = {
-    'act': Colors.green,
-    'log': Colors.blue,
-    'ignore': Colors.grey,
-    'skip': Colors.orange,
-    'error': Colors.red,
-  };
-
-  static const _actionIcons = {
-    'act': Icons.play_circle,
-    'log': Icons.edit_note,
-    'ignore': Icons.do_not_disturb,
-    'skip': Icons.skip_next,
-    'error': Icons.error_outline,
+    'act': AtlasColors.success,
+    'alert': AtlasColors.warning,
+    'log': AtlasColors.info,
+    'ignore': AtlasColors.textTertiary,
+    'skip': Color(0xFFE0915B),
+    'error': AtlasColors.error,
   };
 
   static final _appNames = {
@@ -156,42 +277,112 @@ class _LogEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _actionColors[entry.action] ?? Colors.grey;
-    final icon = _actionIcons[entry.action] ?? Icons.help_outline;
+    final color =
+        _actionColors[entry.action] ?? AtlasColors.textTertiary;
     final appName = _appNames[entry.packageName] ?? entry.packageName;
-    final time = DateFormat('MMM d, HH:mm:ss').format(
+    final time = DateFormat('MMM d, HH:mm').format(
       DateTime.fromMillisecondsSinceEpoch(entry.timestamp),
     );
 
-    return ListTile(
-      leading: Icon(icon, color: color),
-      title: Text(entry.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(appName, style: const TextStyle(fontWeight: FontWeight.w500)),
-          Text(entry.reason, maxLines: 2, overflow: TextOverflow.ellipsis),
-        ],
+    return Container(
+      decoration: BoxDecoration(
+        color: AtlasColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AtlasColors.border, width: 0.5),
       ),
-      isThreeLine: true,
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            Container(
+              width: 3,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  bottomLeft: Radius.circular(12),
+                ),
+              ),
             ),
-            child: Text(
-              entry.action.toUpperCase(),
-              style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            entry.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            entry.action.toUpperCase(),
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          appName,
+                          style: const TextStyle(
+                            color: AtlasColors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          time,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AtlasColors.textTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (entry.reason.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        entry.reason,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AtlasColors.textTertiary,
+                          fontSize: 12,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(time, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-        ],
+          ],
+        ),
       ),
     );
   }

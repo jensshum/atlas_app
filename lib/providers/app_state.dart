@@ -354,13 +354,13 @@ class SchedulerState extends ChangeNotifier {
 
   Future<void> createTask(String name, String prompt, String cron) async {
     try {
-      final task = await _app.client?.createTask(name, prompt, cron);
-      if (task != null) tasks.add(task);
+      await _app.client?.createTask(name, prompt, cron);
       _error = null;
+      await refreshTasks(); // refresh from server for consistent data format
     } catch (e) {
       _error = e.toString();
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   Future<void> deleteTask(String id) async {
@@ -390,6 +390,7 @@ class SchedulerState extends ChangeNotifier {
     try {
       final result = await _app.client?.runTask(id);
       _error = null;
+      await refreshTasks(); // refresh to pick up updated lastRunAt/lastResult
       return result;
     } catch (e) {
       _error = e.toString();
