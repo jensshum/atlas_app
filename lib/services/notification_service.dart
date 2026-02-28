@@ -1,9 +1,12 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static const _controlId = 1;
+  static bool _initialized = false;
 
   /// Called when the user taps the "Atlas is controlling" notification.
   static void Function()? onCancelTapped;
@@ -18,10 +21,25 @@ class NotificationService {
     );
 
     // Request notification permission on Android 13+.
-    final status = await Permission.notification.status;
-    if (!status.isGranted) {
-      await Permission.notification.request();
+    if (Platform.isAndroid) {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        await android.requestNotificationsPermission();
+        // Create the notification channel explicitly.
+        await android.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'atlas_control',
+            'Atlas Control',
+            description: 'Shown while Atlas is controlling your phone',
+            importance: Importance.max,
+          ),
+        );
+      }
     }
+
+    _initialized = true;
+    debugPrint('[NotificationService] initialized');
   }
 
   static void _onResponse(NotificationResponse response) {
@@ -29,8 +47,10 @@ class NotificationService {
   }
 
   static Future<void> showControlNotification() async {
-    // Don't attempt if permission wasn't granted.
-    if (!await Permission.notification.isGranted) return;
+    if (!_initialized) {
+      debugPrint('[NotificationService] not initialized, skipping show');
+      return;
+    }
 
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
@@ -40,7 +60,7 @@ class NotificationService {
         importance: Importance.max,
         priority: Priority.max,
         ongoing: true,
-        autoCancel: true,
+        autoCancel: false,
         showWhen: false,
         icon: 'ic_notification',
       ),
@@ -51,6 +71,7 @@ class NotificationService {
       'Tap to cancel and take back control',
       details,
     );
+    debugPrint('[NotificationService] notification shown');
   }
 
   static Future<void> cancelControlNotification() async {
