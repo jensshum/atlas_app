@@ -33,6 +33,7 @@ class RealtimeVoiceService {
 
   final List<int> _audioBuf = [];
   String _aiTextBuf = '';
+  bool _muted = false;
 
   // Track the current function_call item so we know the call_id + name
   // when arguments finish streaming.
@@ -81,6 +82,9 @@ class RealtimeVoiceService {
     await _startMic();
   }
 
+  /// Resume sending mic audio to OpenAI after playback finishes.
+  void resumeMic() => _muted = false;
+
   Future<void> disconnect() async {
     await _micSub?.cancel();
     _micSub = null;
@@ -112,7 +116,7 @@ class RealtimeVoiceService {
     onStatusChange?.call(VoiceSessionStatus.listening);
 
     _micSub = stream.listen((chunk) {
-      if (_socket?.readyState == WebSocket.open) {
+      if (!_muted && _socket?.readyState == WebSocket.open) {
         _sendJson({
           'type': 'input_audio_buffer.append',
           'audio': base64Encode(Uint8List.fromList(chunk)),
@@ -155,6 +159,7 @@ class RealtimeVoiceService {
       case 'response.audio.delta':
         final delta = event['delta'] as String? ?? '';
         if (delta.isNotEmpty) {
+          _muted = true;
           _audioBuf.addAll(base64Decode(delta));
           onStatusChange?.call(VoiceSessionStatus.agentSpeaking);
         }

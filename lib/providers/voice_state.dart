@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -17,6 +19,7 @@ class VoiceState extends ChangeNotifier {
 
   RealtimeVoiceService? _service;
   AudioPlayer? _player;
+  StreamSubscription? _playerCompleteSub;
 
   VoiceState(this._app, this._cmdState);
 
@@ -43,6 +46,11 @@ class VoiceState extends ChangeNotifier {
     notifyListeners();
 
     _player = AudioPlayer();
+    _playerCompleteSub = _player!.onPlayerComplete.listen((_) {
+      _service?.resumeMic();
+      _status = VoiceSessionStatus.listening;
+      notifyListeners();
+    });
     _service = RealtimeVoiceService(apiClient: client);
 
     _service!
@@ -100,6 +108,8 @@ class VoiceState extends ChangeNotifier {
 
   void _cleanup() {
     _service = null;
+    _playerCompleteSub?.cancel();
+    _playerCompleteSub = null;
     _player?.dispose();
     _player = null;
   }
